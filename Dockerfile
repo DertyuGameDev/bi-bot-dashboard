@@ -6,7 +6,7 @@ FROM python:3.13-slim-bookworm AS app
 ARG UV_VERSION=0.11.28
 LABEL org.opencontainers.image.title="BI-бот дашборд" \
       org.opencontainers.image.description="Чат для анализа данных и интерактивных BI-дашбордов"
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates fonts-dejavu-core git libstdc++6 \
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates fonts-dejavu-core git libstdc++6 libatomic1 \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir "uv==${UV_VERSION}"
 COPY --from=codex /usr/local/bin/node /usr/local/bin/node

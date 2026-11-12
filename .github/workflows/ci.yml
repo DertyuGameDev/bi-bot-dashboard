@@ -29,3 +29,28 @@ jobs:
         run: find scripts docker -name '*.sh' -print0 | xargs -0 -n 1 sh -n
       - run: docker compose --env-file .env.docker.example config --quiet
       - run: docker build -t bi-bot-dashboard:ci .
+      - name: Prepare isolated Compose verification
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import secrets
+          text=Path('.env.docker.example').read_text()
+          text=text.replace('BI_DB_ADMIN_PASSWORD=CHANGE_ME','BI_DB_ADMIN_PASSWORD='+secrets.token_hex(24))
+          text=text.replace('BI_DB_READER_PASSWORD=CHANGE_ME','BI_DB_READER_PASSWORD='+secrets.token_hex(24))
+          text=text.replace('BI_PORT=8080','BI_PORT=18080').replace('BI_VIEW_PORT=8082','BI_VIEW_PORT=18082')
+          text=text.replace('BI_MODEL_ADAPTER=codex','BI_MODEL_ADAPTER=demo')
+          Path('.env.docker').write_text(text)
+          Path('.env.docker').chmod(0o600)
+          Path('data').mkdir(exist_ok=True)
+          PY
+          docker tag bi-bot-dashboard:ci bi-bot-dashboard:local
+      - name: Start PostgreSQL, import, app and viewer
+        run: docker compose --env-file .env.docker up -d --wait --wait-timeout 300
+      - name: Verify dashboard, table and HTML using PostgreSQL
+        run: python scripts/docker_smoke.py --model-adapter demo
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose --env-file .env.docker logs --tail 60
+      - name: Remove isolated CI volumes
+        if: always()
+        run: docker compose --env-file .env.docker down --volumes --remove-orphans
