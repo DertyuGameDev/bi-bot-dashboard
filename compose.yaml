@@ -1,0 +1,89 @@
+name: ${BI_COMPOSE_PROJECT:-bi-bot-dashboard}
+
+x-app: &app-image
+  image: bi-bot-dashboard:local
+  build:
+    context: .
+  init: true
+
+services:
+  postgres:
+    image: postgres:16-bookworm
+    environment:
+      POSTGRES_USER: bi_admin
+      POSTGRES_PASSWORD: ${BI_DB_ADMIN_PASSWORD:?Run ./scripts/docker_start.sh first}
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U bi_admin -d postgres']
+      interval: 3s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  import-data:
+    <<: *app-image
+    command: [python, /app/docker/bootstrap.py]
+    environment:
+      BI_DB_ADMIN_PASSWORD: ${BI_DB_ADMIN_PASSWORD:?Run ./scripts/docker_start.sh first}
+      BI_DB_READER_PASSWORD: ${BI_DB_READER_PASSWORD:?Run ./scripts/docker_start.sh first}
+      BI_DATA_URL: ${BI_DATA_URL:-https://nc.puzzle-rpa.ru/public.php/dav/files/gZaaDqjx2rcyfP4/?accept=zip}
+    volumes:
+      - ./data:/imports:ro
+      - fixture-cache:/cache
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    <<: *app-image
+    environment:
+      RPA_SOURCE: postgres
+      RPA_DATABASE_URL: host=postgres port=5432 dbname=puzzle_rpa user=rpa_reader password=${BI_DB_READER_PASSWORD:?Run ./scripts/docker_start.sh first}
+      RPA_MODEL_ADAPTER: ${BI_MODEL_ADAPTER:-codex}
+      RPA_MODEL: ${BI_MODEL:-gpt-6.1-terra}
+      RPA_REASONING: ${BI_REASONING:-medium}
+      RPA_SECURE_COOKIE: ${BI_SECURE_COOKIE:-false}
+      RPA_PUBLIC_BASE_URL: ${BI_PUBLIC_BASE_URL:-http://127.0.0.1:8082}
+    ports:
+      - '${BI_BIND_ADDRESS:-127.0.0.1}:${BI_PORT:-8080}:8080'
+    volumes:
+      - app-data:/data
+      - codex-auth:/codex
+    depends_on:
+      import-data:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/health', timeout=5)"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 15s
+    restart: unless-stopped
+
+  viewer:
+    <<: *app-image
+    command: [python, -m, uvicorn, 'MY.public:app', --host, 0.0.0.0, --port, '8082']
+    environment:
+      RPA_STORAGE: /data/state.sqlite3
+    volumes:
+      - app-data:/data
+    ports:
+      - '${BI_BIND_ADDRESS:-127.0.0.1}:${BI_VIEW_PORT:-8082}:8082'
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8082/health', timeout=5)"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  fixture-cache:
+  app-data:
+  codex-auth:

@@ -1,0 +1,64 @@
+// Isolated PostgreSQL QA: two chats share one library and continue the same saved entry.
+async(page)=>{
+ const dir='/Users/sviat/Downloads/RPA/.local/verification/';
+ const context=await page.context().browser().newContext({storageState:dir+'library-cookie.json',viewport:{width:1440,height:900}});
+ const checks=[],errors=[];let step='boot';
+ const ok=(name,pass,data)=>{checks.push({name,pass:!!pass,...(data?{data}:{})});if(!pass)throw Error(name);};
+ try{
+  const p=await context.newPage();p.setDefaultTimeout(30000);p.on('pageerror',e=>errors.push(e.message));
+  const ready=()=>p.waitForFunction(()=>document.querySelector('#connection-status')?.textContent==='Готов к работе');
+  const api=(path)=>p.evaluate(async path=>(await fetch(path,{headers:{'X-Conversation-ID':new URLSearchParams(location.search).get('chat')||'main'}})).json(),path);
+  const library=async()=>{await p.locator('#chat-saved-button').click();await p.locator('#saved-dialog').waitFor();await p.waitForFunction(()=>document.querySelector('#saved-list')?.getAttribute('aria-busy')==='false');};
+  const entry=title=>p.locator('#saved-list .saved-item').filter({has:p.locator('h3',{hasText:title})});
+  const leave=()=>p.locator('[data-close="saved-dialog"]').click();
+  const switchChat=async title=>{await p.locator('#conversations-button').click();await p.locator('#conversation-search').fill(title);await p.locator('#conversations-list a').first().click();await ready();};
+  const open=async title=>{await library();const item=entry(title),id=await item.locator('[data-open]').getAttribute('data-open');const [r]=await Promise.all([p.waitForResponse(r=>r.url().endsWith('/'+id+'/open')),item.locator('[data-open]').click()]);ok('open saved dashboard HTTP 200',r.ok());const value=await r.json();await p.locator('#saved-dialog').waitFor({state:'hidden'});return value;};
+  const root=()=>p.locator('#dashboard-mount .message-plots');
+  const idle=()=>p.waitForFunction(()=>!document.querySelector('#dashboard-mount .message-plots[aria-busy="true"]'));
+  const edit=async action=>{const [r]=await Promise.all([p.waitForResponse(r=>r.url().endsWith('/edit')),action()]);ok('card edit HTTP 200',r.ok());const result=await r.json();await idle();return result;};
+  await p.goto('http://127.0.0.1:8081/?chat=main');await ready();
+  const original=await api('/api/state'),originalID=original.saved_id,originalKpis=original.kpis;
+  await library();ok('library explicitly covers all chats',(await p.locator('#saved-dialog').textContent()).includes('Общая библиотека всех ваших чатов'));
+  const firstList=await p.locator('#saved-list [data-open]').evaluateAll(nodes=>nodes.map(n=>n.dataset.open).sort());
+  ok('main chat sees dashboards from both chats',firstList.length===2);await p.screenshot({path:dir+'library-list.png'});await leave();
+  step='other chat';await switchChat('Сравнение 2024');const secondURL=p.url(),second=await api('/api/state');
+  ok('other chat starts with its own messages and dashboard',second.saved_id!==originalID&&second.messages.length===2);
+  await library();const secondList=await p.locator('#saved-list [data-open]').evaluateAll(nodes=>nodes.map(n=>n.dataset.open).sort());
+  ok('same complete library in another chat',JSON.stringify(firstList)===JSON.stringify(secondList));await leave();
+  step='continue original here';const opened=await open('Общий анализ 2025');
+  ok('opening stays in the current chat',p.url()===secondURL);
+  ok('same saved entry selected without copying',opened.saved_id===originalID&&opened.workspace.saved_id===originalID&&(await api('/api/dashboards')).items.length===2);
+  ok('table, formulas, filters and KPI restored',opened.dataset.id===original.dataset.id&&opened.calculations[0].name==='gap'&&opened.filters.regions.join()==='Центральный'&&JSON.stringify(opened.kpis)===JSON.stringify(originalKpis));
+  ok('chart configuration and zoom restored',JSON.stringify(opened.charts[0].spec.zoom)===JSON.stringify(original.charts[0].spec.zoom));
+  ok('conversation messages remain independent',opened.messages.length===second.messages.length+1&&opened.messages[0].id===second.messages[0].id&&opened.messages.every(m=>!original.messages.some(a=>a.id===m.id)));
+  const region=root().locator('[data-value-key=regions]');await region.locator('summary').click();
+  await edit(()=>region.locator('.value-actions button').first().click());
+  const updated=await edit(()=>region.locator('input[value="Уральский"]').check());
+  ok('edits autosave into the same common dashboard',updated.message.dashboard.saved_id===originalID&&updated.message.dashboard.filters.regions.join()==='Уральский');await p.keyboard.press('Escape');
+  await p.screenshot({path:dir+'library-continued.png'});
+  step='reload current chat';await p.reload();await ready();const restored=await api('/api/state');
+  ok('reload keeps current chat and selected shared dashboard',p.url()===secondURL&&restored.workspace.saved_id===originalID&&restored.filters.regions.join()==='Уральский');
+  step='real AI continuation';await p.locator('#message-input').fill('Измени только заголовок первого графика на «Выручка по месяцам». Данные и фильтры оставь текущими.');
+  const [job]=await Promise.all([p.waitForResponse(r=>r.url().endsWith('/api/chat/jobs')&&r.request().method()==='POST'),p.locator('#chat-form').evaluate(n=>n.requestSubmit())]);
+  ok('real model job accepted',job.status()===202);await p.locator('#busy').waitFor({state:'hidden',timeout:180000});
+  const ai=await api('/api/state');
+  ok('AI continues the dashboard opened from another chat',ai.workspace.saved_id===originalID&&ai.dashboard.charts[0].title==='Выручка по месяцам'&&ai.filters.regions.join()==='Уральский');
+  ok('AI change updates common entry without duplicate',(await api('/api/dashboards')).items.length===2);
+  step='versions';await root().locator('[data-card-actions]').click();await p.locator('#open-versions').click();await p.locator('#versions-list .version-item').first().waitFor();
+  ok('version history available in destination chat',await p.locator('#versions-list .version-item').count()>=3);await p.locator('[data-close="versions-dialog"]').click();
+  step='back to main';await switchChat('Основной чат');const latest=await open('Общий анализ 2025');
+  ok('opening from original chat loads latest shared changes',latest.filters.regions.join()==='Уральский'&&latest.dashboard.charts[0].title==='Выручка по месяцам'&&latest.calculations[0].name==='gap');
+  step='search and copy';await library();await p.locator('#saved-search').fill('Общий анализ');await p.waitForFunction(()=>document.querySelectorAll('#saved-list [data-open]').length===1);
+  ok('search finds shared dashboard by name',await entry('Общий анализ 2025').count()===1);await p.locator('#saved-search').fill('');await p.waitForFunction(()=>document.querySelectorAll('#saved-list [data-open]').length===2);
+  const [copyResponse]=await Promise.all([p.waitForResponse(r=>r.url().endsWith('/'+originalID+'/open')),entry('Общий анализ 2025').locator('[data-copy]').click()]);const copy=await copyResponse.json();await p.locator('#saved-dialog').waitFor({state:'hidden'});
+  ok('explicit copy creates a separate common entry',copy.saved_id!==originalID&&(await api('/api/dashboards')).items.length===3);
+  step='rename copy';await library();const copyItem=p.locator('#saved-list .saved-item').filter({has:p.locator('[data-open="'+copy.saved_id+'"]')});await copyItem.locator('[data-rename]').click();await copyItem.locator('input').fill('Эксперимент');
+  await copyItem.locator('form').evaluate(n=>n.requestSubmit());await p.waitForFunction(()=>document.querySelector('#saved-list').textContent.includes('Эксперимент'));await leave();
+  await switchChat('Сравнение 2024');await library();ok('renamed copy visible in every chat',await entry('Эксперимент').count()===1&&await p.locator('#saved-list [data-open]').count()===3);
+  step='delete shared copy';await entry('Эксперимент').locator('[data-delete]').click();await p.waitForFunction(()=>document.querySelectorAll('#saved-list [data-open]').length===2);await leave();
+  await switchChat('Основной чат');await library();ok('deletion is reflected in other chats',await p.locator('#saved-list [data-open]').count()===2&&await entry('Эксперимент').count()===0);
+  step='phone';await p.setViewportSize({width:390,height:844});await p.waitForTimeout(300);
+  ok('common list fits phone viewport',await p.evaluate(()=>document.documentElement.scrollWidth===innerWidth));await p.screenshot({path:dir+'library-phone.png'});
+  ok('no page errors',errors.length===0,{errors});return{passed:checks.length,checks,errors};
+ }catch(e){return{step,error:e.message,passed:checks.filter(v=>v.pass).length,checks,errors};}finally{await context.close();}
+}

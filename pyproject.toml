@@ -1,0 +1,30 @@
+[project]
+name = "bi-bot-dashboard"
+version = "0.1.0"
+description = "BI-бот дашборд: аналитический чат с интерактивными графиками и таблицами"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.30,<1",
+    "pandas>=2.2,<4",
+    "matplotlib>=3.9,<4",
+    "seaborn>=0.13,<1",
+    "psycopg[binary]>=3.2,<4",
+    "pydantic-settings>=2.6,<3",
+    "httpx>=0.28,<1",
+    "markdown-it-py>=3,<5",
+    "openpyxl>=3.1,<4",
+    "plotly>=7.1.0",
+]
+[dependency-groups]
+dev = ["pytest>=8,<10", "pytest-asyncio>=0.24,<2", "ruff>=0.9,<1"]
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_default_fixture_loop_scope = "function"
+markers = ["integration: requires locally imported Puzzle PostgreSQL fixture"]
+[tool.ruff]
+line-length = 110
+extend-exclude = [".local/vendor"]
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]

@@ -1,0 +1,254 @@
+{
+  "context": {
+    "dashboard_id": "sample-dashboard",
+    "title": "Продажи за 2025 год",
+    "charts": [
+      {
+        "id": "c1",
+        "type": "line",
+        "title": "План и факт по месяцам",
+        "source": "period",
+        "x": "period",
+        "y": [
+          "plan",
+          "fact"
+        ]
+      },
+      {
+        "id": "c2",
+        "type": "donut",
+        "title": "Структура продаж",
+        "source": "structure",
+        "x": "product",
+        "y": [
+          "fact"
+        ]
+      },
+      {
+        "id": "c3",
+        "type": "horizontal_bar",
+        "title": "Рейтинг регионов",
+        "source": "ranking",
+        "x": "region",
+        "y": [
+          "fact"
+        ]
+      },
+      {
+        "id": "c4",
+        "type": "heatmap",
+        "title": "Точки по месяцам",
+        "source": "table",
+        "x": "period",
+        "y": [
+          "fact"
+        ]
+      }
+    ],
+    "columns": [
+      "period",
+      "region",
+      "outlet",
+      "product",
+      "fact",
+      "plan",
+      "quantity",
+      "discount"
+    ],
+    "calculations": [
+      {
+        "name": "delta",
+        "label": "Отклонение",
+        "expression": "fact-plan"
+      }
+    ],
+    "filters": {
+      "start": "2025-01-01",
+      "end": "2025-12-31",
+      "regions": [],
+      "outlets": [],
+      "dimension": "region",
+      "metric": "amount",
+      "granularity": "month",
+      "value_mode": "absolute"
+    },
+    "previous_requests": []
+  },
+  "cases": [
+    {
+      "id": "type-colon",
+      "text": "Поменяй тип второго графика: хочу тепловую карту",
+      "kinds": [
+        "chart.modify"
+      ],
+      "ids": [
+        "c2"
+      ],
+      "params": {
+        "type": "heatmap"
+      },
+      "split": "unseen"
+    },
+    {
+      "id": "stacked",
+      "text": "Хочу видеть третий график столбиками с накоплением",
+      "kinds": [
+        "chart.modify"
+      ],
+      "ids": [
+        "c3"
+      ],
+      "params": {
+        "type": "stacked_bar"
+      },
+      "split": "unseen"
+    },
+    {
+      "id": "move-before",
+      "text": "Поставь четвертый график перед вторым",
+      "kinds": [
+        "chart.reorder"
+      ],
+      "ids": [
+        "c4"
+      ],
+      "params": {
+        "position": "2"
+      },
+      "split": "unseen"
+    },
+    {
+      "id": "remove-two",
+      "text": "Удали графики номер 2 и номер 4",
+      "kinds": [
+        "chart.remove"
+      ],
+      "ids": [
+        "c2",
+        "c4"
+      ],
+      "split": "unseen"
+    },
+    {
+      "id": "named-metric",
+      "text": "На графике «План и факт по месяцам» вместо выручки показывай сумму скидок",
+      "kinds": [
+        "chart.modify"
+      ],
+      "ids": [
+        "c1"
+      ],
+      "params": {
+        "metric": "discount"
+      },
+      "split": "unseen"
+    },
+    {
+      "id": "new-formula",
+      "text": "Новая колонка net: fact - discount",
+      "kinds": [
+        "calculation.add"
+      ],
+      "params": {
+        "expression": "fact-discount"
+      },
+      "split": "unseen"
+    },
+    {
+      "id": "share-column",
+      "text": "Добавь вычисляемый столбец: доля каждой точки в общей выручке",
+      "kinds": [
+        "calculation.add"
+      ],
+      "split": "unseen"
+    },
+    {
+      "id": "duplicate",
+      "text": "Сделай копию текущего дашборда",
+      "kinds": [
+        "storage.copy"
+      ],
+      "split": "unseen"
+    },
+    {
+      "id": "dimension",
+      "text": "Давай теперь смотреть по регионам вместо торговых точек",
+      "kinds": [
+        "data.filter"
+      ],
+      "params": {
+        "dimension": "region"
+      },
+      "split": "unseen"
+    },
+    {
+      "id": "reset-region",
+      "text": "Убери ограничение на регион, оставь остальные фильтры",
+      "kinds": [
+        "data.filter"
+      ],
+      "split": "unseen"
+    },
+    {
+      "id": "csv-politeness",
+      "text": "Мне нужен файл CSV со всей таблицей и расчетами",
+      "kinds": [
+        "export"
+      ],
+      "params": {
+        "format": "csv"
+      },
+      "split": "unseen"
+    },
+    {
+      "id": "simple-total",
+      "text": "Сколько всего выручки в выбранном периоде?",
+      "kinds": [
+        "data.query"
+      ],
+      "split": "unseen"
+    },
+    {
+      "id": "why-plan",
+      "text": "Расскажи, почему план не выполнен",
+      "kinds": [
+        "analysis.explain"
+      ],
+      "split": "unseen"
+    },
+    {
+      "id": "refresh-politeness",
+      "text": "Хочу подтянуть свежие данные из базы, настройки не трогай",
+      "kinds": [
+        "data.refresh"
+      ],
+      "split": "unseen"
+    },
+    {
+      "id": "multi-chart",
+      "text": "Первый график сделай столбчатым, а третий график — линейным",
+      "kinds": [
+        "chart.modify",
+        "chart.modify"
+      ],
+      "ids": [
+        "c1",
+        "c3"
+      ],
+      "split": "unseen"
+    },
+    {
+      "id": "compound-layout-export",
+      "text": "Сделай две колонки и выгрузи дашборд HTML-файлом",
+      "kinds": [
+        "dashboard.layout",
+        "export"
+      ],
+      "params": {
+        "layout": "two-columns",
+        "format": "html"
+      },
+      "split": "unseen"
+    }
+  ]
+}

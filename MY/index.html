@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta
+      name="description"
+      content="Puzzle RPA — аналитический ассистент. От вопроса к данным, вычислениям и интерактивному дашборду."
+    />
+    <title>MY · аналитический ассистент</title>
+    <link rel="stylesheet" href="/assets/style.css" />
+    <script src="/assets/plotly.min.js"></script>
+    <script src="/assets/plotly-locale-ru.js"></script>
+    <script type="module" src="/assets/app.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="MY — главная">MY</a>
+      <div class="topbar-actions">
+        <button id="chat-saved-button" class="quiet-button" type="button">Мои дашборды <span id="chat-saved-count" class="count-pill">0</span></button>
+      <nav class="tabs" aria-label="Основные разделы" role="tablist">
+        <button
+          id="data-tab"
+          role="tab"
+          aria-selected="false"
+          aria-controls="data-panel"
+          tabindex="-1"
+        >
+          Данные <span id="tab-count" class="tab-count" hidden></span>
+        </button>
+        <button
+          id="chat-tab"
+          role="tab"
+          aria-selected="true"
+          aria-controls="chat-panel"
+          tabindex="0"
+        >
+          Чат
+        </button>
+      </nav>
+      </div>
+      <span id="connection-status" class="sr-only" aria-live="polite">Загрузка переписки…</span>
+    </header>
+    <main class="workspace">
+      <div id="error" role="alert" class="error-banner" hidden></div>
+      <section id="chat-panel" role="tabpanel" aria-labelledby="chat-tab">
+        <div class="mobile-work-tabs" role="tablist" aria-label="Рабочая область">
+          <button id="conversation-view-tab" role="tab" aria-selected="true" aria-controls="conversation-pane">Переписка</button>
+          <button id="dashboard-view-tab" role="tab" aria-selected="false" aria-controls="dashboard-pane" tabindex="-1">Дашборд</button>
+        </div>
+        <section id="conversation-pane" aria-label="Чат с ассистентом">
+          <header class="conversation-heading">
+            <button id="conversations-button" type="button" aria-haspopup="dialog" aria-controls="conversations-dialog"><span id="conversation-title">Основной чат</span><span aria-hidden="true">⌄</span></button>
+            <button id="new-conversation" type="button" aria-label="Создать новый чат" title="Новый чат">＋</button>
+          </header>
+        <div id="chat-scroll" class="chat-scroll">
+          <div id="welcome" class="chat-empty">Напишите сообщение</div>
+          <div
+            id="messages"
+            class="messages"
+            role="log"
+            aria-label="Переписка с ассистентом"
+            aria-live="polite"
+          ></div>
+        </div>
+        <div id="busy" class="analysis-progress" role="status" hidden>
+          <div class="progress-heading"><span id="busy-text">Обрабатываю запрос…</span><span id="progress-detail">Подготовка ответа</span></div>
+          <div class="progress-track indeterminate"><progress id="analysis-progress" aria-label="Прогресс обработки запроса"></progress><span class="progress-fill" aria-hidden="true"></span></div>
+        </div>
+        <div class="composer-wrap">
+          <section id="work-context" class="work-context" aria-label="Выбранный дашборд" hidden>
+            <div class="work-context-main">
+              <span class="work-context-label">Работаем с дашбордом</span>
+              <button type="button" id="work-show" title="Показать выбранный дашборд"></button>
+              <span id="work-save" role="status">Изменения сохраняются автоматически</span>
+            </div>
+            <div class="work-context-actions">
+              <button type="button" id="work-table">Таблица и расчёты</button>
+              <button type="button" id="work-copy">Создать копию</button>
+              <button type="button" id="work-new">Новый анализ</button>
+            </div>
+          </section>
+          <div class="composer-tools"><button id="templates-button" type="button">Шаблоны запросов</button><span id="draft-status" role="status"></span></div>
+          <form id="chat-form" class="composer">
+            <label class="sr-only" for="message-input"
+              >Сообщение ассистенту</label
+            >
+            <textarea
+              id="message-input"
+              placeholder="Сообщение…"
+              rows="1"
+              maxlength="4000"
+              required
+            ></textarea>
+            <button
+              id="send-button"
+              class="send-button"
+              type="submit"
+              aria-label="Отправить сообщение"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                width="24"
+                height="24"
+              >
+                <path
+                  d="M3 3l19 9-19 9 4-9-4-9zm4 9h15"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+          </form>
+        </div>
+        </section>
+        <div id="workspace-splitter" role="separator" aria-orientation="vertical" aria-label="Ширина чата" aria-controls="conversation-pane dashboard-pane" aria-valuemin="260" aria-valuemax="800" aria-valuenow="400" tabindex="0" title="Перетащите границу или используйте стрелки. Двойной щелчок — исходная ширина."></div>
+        <section id="dashboard-pane" aria-label="Рабочая область текущего чата">
+          <header class="dashboard-pane-heading">
+            <div class="dashboard-selection"><label for="dashboard-select">Дашборд в этом чате</label><select id="dashboard-select" disabled><option>Пока нет дашбордов</option></select></div>
+            <div class="button-group"><button id="panel-table" type="button" disabled>Таблица и расчёты</button><button id="panel-calculation" type="button" disabled>Добавить вычисление</button><button id="panel-new" type="button">Новый анализ</button></div>
+          </header>
+          <div class="workspace-view-tabs" role="tablist" aria-label="Содержимое рабочей области">
+            <button id="workspace-charts-tab" role="tab" aria-selected="true" aria-controls="dashboard-scroll">Графики</button>
+            <button id="workspace-table-tab" role="tab" aria-selected="false" aria-controls="workspace-table-panel" tabindex="-1">Таблица и расчёты</button>
+          </div>
+          <div id="dashboard-scroll" class="dashboard-scroll" role="tabpanel" aria-labelledby="workspace-charts-tab">
+            <div id="dashboard-empty" class="dashboard-empty"><h2>Дашборд появится здесь</h2><p>Попросите ассистента построить графики или выберите дашборд из переписки.</p><button id="panel-templates" type="button">Выбрать шаблон запроса</button></div>
+            <div id="dashboard-mount"></div>
+          </div>
+          <section id="workspace-table-panel" role="tabpanel" aria-labelledby="workspace-table-tab" hidden>
+            <p id="workspace-table-status" role="status"></p>
+            <div id="workspace-table-mount"></div>
+          </section>
+        </section>
+      </section>
+      <section
+        id="data-panel"
+        role="tabpanel"
+        aria-labelledby="data-tab"
+        hidden
+      >
+        <div class="data-inner">
+          <div class="workspace-bar">
+            <span>Данные и расчёты</span>
+            <div class="environment">
+              <span id="source-badge" class="badge">Источник данных</span
+              ><span id="model-badge" class="model-status">Codex</span>
+            </div>
+          </div>
+          <div class="section-heading">
+            <div>
+              <div class="eyebrow">ТЕКУЩЕЕ СОСТОЯНИЕ АНАЛИЗА</div>
+              <h1 id="data-title">Единая таблица</h1>
+              <p>Данные, вычисления и интерактивный дашборд из переписки.</p>
+            </div>
+            <div class="button-group">
+              <button id="saved-button" class="quiet-button">
+                Мои дашборды
+                <span id="saved-count" class="count-pill">0</span></button
+              ><button id="refresh-button" class="quiet-button" disabled>
+                ↻ Обновить из БД</button
+              ><button id="csv-button" class="primary-button" disabled>
+                ↓ Скачать CSV
+              </button>
+            </div>
+          </div>
+          <div id="table-root" class="table-root">
+            <div class="empty-state">
+              <h2>Данные ещё не загружены</h2>
+              <p>Задайте вопрос в чате — здесь появится таблица.</p>
+              <button id="to-chat" class="primary-button">Перейти в чат</button>
+            </div>
+          </div>
+          <div id="dashboard-root"></div>
+          <details id="debug" class="debug" hidden>
+            <summary>
+              Как получен ответ
+              <span class="debug-caption">Источники, скиллы и расчёты</span>
+            </summary>
+            <div id="debug-content"></div>
+          </details>
+        </div>
+      </section>
+    </main>
+    <dialog id="conversations-dialog" class="conversations-dialog" aria-labelledby="conversations-title">
+      <div class="modal-heading"><h2 id="conversations-title">Чаты</h2><button type="button" data-close="conversations-dialog" class="icon-button" aria-label="Закрыть список чатов">×</button></div>
+      <div class="conversation-list-tools"><label class="sr-only" for="conversation-search">Найти чат</label><input id="conversation-search" type="search" placeholder="Найти чат…"><button id="dialog-new-conversation" type="button">Новый чат</button></div>
+      <ul id="conversations-list" aria-live="polite"></ul>
+      <form id="conversation-name-form"><label for="conversation-name">Название текущего чата</label><div><input id="conversation-name" maxlength="80" required><button type="submit">Переименовать</button></div></form>
+    </dialog>
+    <dialog id="card-actions-dialog" class="feature-dialog" aria-labelledby="card-actions-title">
+      <div class="modal-heading"><h2 id="card-actions-title">Действия с дашбордом</h2><button type="button" data-close="card-actions-dialog" class="icon-button" aria-label="Закрыть">×</button></div>
+      <p id="card-actions-name"></p>
+      <section class="feature-section"><h3>Скачать</h3><div class="button-group"><button type="button" data-download-kind="png">Картинка PNG</button><button type="button" data-download-kind="html">HTML-файл</button><button type="button" data-download-kind="csv">Таблица CSV</button><button type="button" data-download-kind="xlsx">Таблица Excel</button></div><p class="muted">Данные выбранной карточки с её фильтрами и вычислениями.</p></section>
+      <section class="feature-section"><button id="open-versions" type="button">История версий</button><p class="muted">Возврат создаёт новую версию. Последующие изменения останутся в истории.</p></section>
+      <section class="feature-section"><h3>Поделиться дашбордом</h3><p class="muted">По ссылке доступен снимок графиков и KPI. Последующие правки не меняют публикацию до её обновления.</p><p id="publication-status" role="status"></p><div id="publication-link-row" hidden><label class="sr-only" for="publication-url">Ссылка на опубликованный дашборд</label><input id="publication-url" readonly><button id="copy-publication" type="button">Скопировать</button></div><div class="button-group"><button id="publish-dashboard" type="button">Создать ссылку</button><button id="revoke-publication" type="button" hidden>Отозвать ссылку</button></div></section>
+    </dialog>
+    <dialog id="versions-dialog" class="feature-dialog" aria-labelledby="versions-title"><div class="modal-heading"><h2 id="versions-title">История версий</h2><button type="button" data-close="versions-dialog" class="icon-button" aria-label="Закрыть">×</button></div><p id="versions-name"></p><div id="versions-list" aria-live="polite"></div></dialog>
+    <dialog id="templates-dialog" class="feature-dialog" aria-labelledby="templates-title"><div class="modal-heading"><h2 id="templates-title">Шаблоны запросов</h2><button type="button" data-close="templates-dialog" class="icon-button" aria-label="Закрыть">×</button></div><p class="muted">Подставьте запрос в чат, при необходимости измените и отправьте.</p><div id="templates-list"></div><details id="template-editor"><summary>Сохранить свой шаблон</summary><form id="template-form"><label for="template-title">Название</label><input id="template-title" maxlength="120" required><label for="template-prompt">Запрос</label><textarea id="template-prompt" maxlength="4000" rows="4" required></textarea><div class="button-group"><button type="button" id="template-from-input">Взять из поля сообщения</button><button type="submit">Сохранить шаблон</button></div></form></details></dialog>
+    <dialog id="saved-dialog" class="saved-dialog" aria-labelledby="saved-dialog-title">
+      <div class="drawer-header">
+        <div>
+          <h2 id="saved-dialog-title">Мои дашборды</h2>
+        </div>
+        <button
+          data-close="saved-dialog"
+          class="icon-button"
+          aria-label="Закрыть список дашбордов"
+        >
+          ×
+        </button>
+      </div>
+      <p class="muted">
+        Общая библиотека всех ваших чатов. Нажмите «Открыть в этом чате» — новые запросы и расчёты будут относиться к выбранному дашборду.
+      </p>
+      <div class="saved-search">
+        <label class="sr-only" for="saved-search">Поиск дашбордов</label
+        ><input
+          id="saved-search"
+          maxlength="200"
+          placeholder="Найти по названию или запросу…"
+        /><label class="sr-only" for="saved-sort">Сортировка</label
+        ><select id="saved-sort">
+          <option value="updated">Сначала изменённые</option>
+          <option value="created">Сначала новые</option>
+          <option value="title">По названию</option>
+        </select>
+      </div>
+      <div id="saved-list" aria-live="polite"></div>
+    </dialog>
+    <dialog id="save-dialog" class="small-dialog">
+      <form id="save-form">
+        <div class="modal-heading">
+          <h2>Название и копия дашборда</h2>
+          <button
+            type="button"
+            data-close="save-dialog"
+            class="icon-button"
+            aria-label="Закрыть"
+          >
+            ×
+          </button>
+        </div>
+        <p class="muted">
+          Все изменения сохраняются автоматически. Здесь можно изменить название
+          или создать отдельную копию текущего дашборда.
+        </p>
+        <label for="save-title">Название</label
+        ><input
+          id="save-title"
+          maxlength="160"
+          required
+          placeholder="Например, Продажи Q3"
+        /><label class="checkbox-line"
+          ><input id="save-copy" type="checkbox" /> Сохранить как новый
+          дашборд</label
+        ><button type="submit" class="primary-button full-width">
+          Сохранить
+        </button>
+      </form>
+    </dialog>
+    <dialog id="calculation-dialog" class="small-dialog">
+      <form id="calculation-form">
+        <div class="modal-heading">
+          <h2>Вычисляемая колонка</h2>
+          <button
+            type="button"
+            data-close="calculation-dialog"
+            class="icon-button"
+            aria-label="Закрыть"
+          >
+            ×
+          </button>
+        </div>
+        <p class="muted">Используйте числовые колонки и операции + − * / %.</p>
+        <label for="calc-name">Имя колонки (латиницей)</label
+        ><input
+          id="calc-name"
+          required
+          pattern="[a-z][a-z0-9_]{0,39}"
+          value="completion"
+        /><label for="calc-label">Подпись</label
+        ><input id="calc-label" required value="Выполнение плана, %" /><label
+          for="calc-expression"
+          >Формула</label
+        ><input id="calc-expression" required value="fact / plan * 100" />
+        <p class="muted">
+          Нулевой знаменатель даст пустое значение. Остальные данные сохранятся.
+        </p>
+        <button type="submit" class="primary-button full-width">
+          Добавить колонку
+        </button>
+      </form>
+    </dialog>
+    <div id="toast" class="toast" role="status" hidden></div>
+  </body>
+</html>
