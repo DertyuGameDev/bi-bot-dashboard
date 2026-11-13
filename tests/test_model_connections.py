@@ -20,6 +20,14 @@ from shared.model_providers import PROVIDERS
 from shared.models import AgentPlan, AgentStep
 
 
+@pytest.fixture(autouse=True)
+def isolated_model_credentials(monkeypatch):
+    # Test runs must neither use nor print the installation owner's credentials.
+    for name in list(os.environ):
+        if name == "RPA_MODEL" or name.startswith("RPA_MODEL_") or name == "RPA_REASONING":
+            monkeypatch.delenv(name)
+
+
 def final():
     return AgentStep(
         kind="final",
