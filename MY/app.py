@@ -6,6 +6,7 @@ from typing import Literal
 from fastapi import FastAPI, Request, Response, HTTPException, Depends, Query
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from shared.config import Settings, ROOT
+from shared.model_providers import provider_info
 from shared.storage import Store, Conflict
 from shared.chat import ChatService
 from MY.jobs import AnalysisJobs
@@ -187,7 +188,10 @@ def create_app(settings=None):
             "source": settings.source,
             "model_adapter": settings.model_adapter,
             "model": settings.model,
-            "reasoning": settings.reasoning,
+            **provider_info(settings),
+            "reasoning": settings.reasoning
+            if settings.model_adapter == "codex"
+            else settings.model_api_reasoning or None,
             "independent_cards": True,
             "dashboard_brief": settings.dashboard_brief_enabled,
         }

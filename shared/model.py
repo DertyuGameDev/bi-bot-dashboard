@@ -13,11 +13,22 @@ class ModelError(ValueError):
     pass
 
 
+def model_adapter(settings):
+    if settings.model_adapter == "codex":
+        return CodexAdapter(settings)
+    if settings.model_adapter == "demo":
+        return DemoAdapter(settings)
+    from shared.model_api import APIAdapter
+
+    return APIAdapter(settings)
+
+
 def response_schema(response_type):
     schema = response_type.model_json_schema()
 
     def strict(node):
         if isinstance(node, dict):
+            node.pop("default", None)
             if node.get("type") == "object" and "properties" in node:
                 # Structured outputs require nullable optional fields to be present too.
                 node["required"] = list(node["properties"])
@@ -123,6 +134,10 @@ class CodexAdapter:
                 raise ModelError(
                     f"Модель {s.model} не ответила за {s.model_timeout} с. Повторите запрос; состояние сохранено."
                 ) from e
+            except FileNotFoundError:
+                raise ModelError(
+                    "Codex CLI не установлен. Используйте Docker-запуск или установите Codex CLI."
+                ) from None
             if result.returncode or not output.exists():
                 raise ModelError(
                     f"Codex не вернул план для {s.model}. Проверьте codex login status и доступность модели. Автоматическая подмена отключена."

@@ -10,7 +10,7 @@ import urllib.request
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default="http://127.0.0.1:18080")
-    parser.add_argument("--model-adapter", choices=["codex", "demo"], default="demo")
+    parser.add_argument("--model-adapter", default="demo")
     args = parser.parse_args()
     client = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 

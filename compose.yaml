@@ -45,6 +45,13 @@ services:
       RPA_MODEL_ADAPTER: ${BI_MODEL_ADAPTER:-codex}
       RPA_MODEL: ${BI_MODEL:-gpt-6.1-terra}
       RPA_REASONING: ${BI_REASONING:-medium}
+      RPA_MODEL_BASE_URL: ${BI_MODEL_BASE_URL:-}
+      RPA_MODEL_API_KEY: ${BI_MODEL_API_KEY:-}
+      RPA_MODEL_API_HEADERS: ${BI_MODEL_API_HEADERS:-}
+      RPA_MODEL_API_FORMAT: ${BI_MODEL_API_FORMAT:-auto}
+      RPA_MODEL_API_REASONING: ${BI_MODEL_API_REASONING:-}
+      RPA_MODEL_MAX_OUTPUT_TOKENS: ${BI_MODEL_MAX_OUTPUT_TOKENS:-8192}
+      RPA_MODEL_TIMEOUT: ${BI_MODEL_TIMEOUT:-120}
       RPA_SECURE_COOKIE: ${BI_SECURE_COOKIE:-false}
       RPA_PUBLIC_BASE_URL: ${BI_PUBLIC_BASE_URL:-http://127.0.0.1:8082}
     ports:
@@ -52,6 +59,8 @@ services:
     volumes:
       - app-data:/data
       - codex-auth:/codex
+    extra_hosts:
+      - host.docker.internal:host-gateway
     depends_on:
       import-data:
         condition: service_completed_successfully

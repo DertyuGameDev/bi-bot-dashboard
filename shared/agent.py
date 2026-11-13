@@ -7,7 +7,7 @@ import json
 import time
 from datetime import date
 from pathlib import Path
-from shared.model import CodexAdapter, DemoAdapter, ModelError
+from shared.model import model_adapter, DemoAdapter, ModelError
 from shared.models import AgentStep, uid
 from shared.tools import Tools, catalog
 from shared.analytics import reconcile_outlets
@@ -61,7 +61,7 @@ class Agent:
     def __init__(self, settings, store):
         self.settings = settings
         self.store = store
-        self.adapter = CodexAdapter(settings) if settings.model_adapter == "codex" else DemoAdapter(settings)
+        self.adapter = model_adapter(settings)
 
     def run(self, owner, state, text, progress=None):
         started = time.monotonic()

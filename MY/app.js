@@ -1125,7 +1125,7 @@ async function boot() {
     $("#model-badge").textContent =
       health.model_adapter === "demo"
         ? "Демо · без ИИ"
-        : health.model + " · medium";
+        : [health.provider, health.model, health.reasoning].filter(Boolean).join(" · ");
     view = mergeView(await api("/api/state"));
     liveReady=true;
     $("#connection-status").textContent = "Готов к работе";
