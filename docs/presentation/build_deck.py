@@ -132,7 +132,7 @@ class Slide:
             f'<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="{n}" name="Line {n}"/><p:cNvCxnSpPr/><p:nvPr/></p:nvCxnSpPr><p:spPr><a:xfrm{flip}><a:off x="{em(x)}" y="{em(y)}"/><a:ext cx="{em(w)}" cy="{em(h)}"/></a:xfrm><a:prstGeom prst="line"><a:avLst/></a:prstGeom><a:ln w="{em(sw)}"><a:solidFill><a:srgbClr val="{color}"/></a:solidFill></a:ln></p:spPr><p:style><a:lnRef idx="0"><a:srgbClr val="{color}"/></a:lnRef><a:fillRef idx="0"><a:srgbClr val="{color}"/></a:fillRef><a:effectRef idx="0"><a:srgbClr val="{color}"/></a:effectRef><a:fontRef idx="minor"><a:srgbClr val="{color}"/></a:fontRef></p:style></p:cxnSp>'
         )
 
-    def image(self, p, x, y, w, h, crop=None, rot=0, frame=False):
+    def image(self, p, x, y, w, h, crop=None, rot=0, frame=False, outline=None, source_crop=None):
         p = Path(p)
         if frame:
             self.shape(x - 8, y - 8, w + 16, h + 29, FG, rot=rot)
@@ -146,9 +146,18 @@ class Slide:
         n = self.ident()
         name = asset(p)
         rid = self.rid(RN + "/image", "../media/" + name)
-        cropxml = ""
+        cropxml = (
+            "<a:srcRect " + " ".join(f'{k}="{round(v * 100000)}"' for k, v in source_crop.items()) + "/>"
+            if source_crop
+            else ""
+        )
+        border = (
+            f'<a:ln w="9525"><a:solidFill><a:srgbClr val="{outline}"/></a:solidFill></a:ln>'
+            if outline
+            else ""
+        )
         self.sh.append(
-            f'<p:pic><p:nvPicPr><p:cNvPr id="{n}" name="{e(p.stem)}"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr></p:nvPicPr><p:blipFill><a:blip r:embed="{rid}"/>{cropxml}<a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr>{tr(x, y, w, h, rot)}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>'.replace(
+            f'<p:pic><p:nvPicPr><p:cNvPr id="{n}" name="{e(p.stem)}"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr></p:nvPicPr><p:blipFill><a:blip r:embed="{rid}"/>{cropxml}<a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr>{tr(x, y, w, h, rot)}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>{border}</p:spPr></p:pic>'.replace(
                 "<p:nvPr/></p:nvPicPr></p:nvPicPr>", "<p:nvPr/></p:nvPicPr>"
             )
         )
@@ -225,7 +234,7 @@ def fit(s, name, x, y, w, h):
     p = A / name
     iw, ih = Image.open(p).size
     k = min(w / iw, h / ih)
-    s.image(p, x + (w - iw * k) / 2, y + (h - ih * k) / 2, iw * k, ih * k)
+    s.image(p, x + (w - iw * k) / 2, y + (h - ih * k) / 2, iw * k, ih * k, outline="B8BEC5")
 
 
 def portrait(s, x, y, size, thinking=False):
@@ -275,10 +284,19 @@ for item in story:
             portrait(s, 68, 519, 145)
         fit(s, item["image"], 449, 257, 775, 424)
     elif kind == "phone":
-        s.heading(*title.split("\n"), w=720, size=51)
-        copy_text(s, body, 58, 329, 620, 170, 26)
-        portrait(s, 68, 540, 140)
-        fit(s, item["image"], 850, 100, 350, 580)
+        s.heading(*title.split("\n"), w=700, size=51)
+        copy_text(s, body, 58, 329, 620, 110, 27)
+        s.text("Чат и дашборд — по вкладкам", 58, 501, 620, 40, 25, FG, True)
+        copy_text(s, "Фильтры, KPI и графики\nподстраиваются под ширину экрана.", 58, 553, 620, 100, 24)
+        # Crop at the slide edge: the phone visually emerges from below,
+        # while every native shape stays within the slide canvas.
+        s.image(
+            A / "mobile-phone-frame.png", 790, 130, 380, 590, source_crop={"b": 1 - 590 / (1810 * 380 / 869)}
+        )
+        # A real mobile screenshot, cropped to the dashboard workspace.
+        s.image(
+            A / item["image"], 817, 214, 328, 890 * 328 / 585, source_crop={"t": 376 / 1266}, outline="B8BEC5"
+        )
     elif kind == "interaction":
         s.text(title.replace("\n", " "), 56, 107, 1168, 77, 44, FG, True)
         copy_text(s, body, 58, 190, 1164, 59, 22)
